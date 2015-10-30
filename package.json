@@ -10,5 +10,7 @@
   "engines": {
     "atom": ">0.148.0"
   },
-  "dependencies": {}
+  "dependencies": {
+    "minimatch": "^2.0.9"
+  }
 }

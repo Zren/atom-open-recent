@@ -1,3 +1,5 @@
+minimatch = require 'minimatch'
+
 #--- localStorage DB
 DB = (key) ->
   @key = key
@@ -132,6 +134,16 @@ OpenRecent.prototype.init = ->
   @insertCurrentPaths()
   @update()
 
+# returns a Boolean if the path should be filtered, based on settings
+OpenRecent.prototype.filterPath = (path) ->
+  if atom.config.get('open-recent.ignoredNames') && ignoredNames = atom.config.get('core.ignoredNames')
+    for name in ignoredNames
+      match = [name, "**/#{name}/**"].some (comparison) ->
+        minimatch(path, comparison, { matchBase: true, dot: true })
+      return true if match
+
+  false # default return value
+
 OpenRecent.prototype.insertCurrentPaths = ->
   return unless atom.project.getDirectories().length > 0
 
@@ -141,6 +153,8 @@ OpenRecent.prototype.insertCurrentPaths = ->
     continue if index > 0 and not atom.config.get('open-recent.listDirectoriesAddedToProject')
 
     path = projectDirectory.path
+
+    continue if @filterPath(path)
 
     # Remove if already listed
     index = recentPaths.indexOf path
@@ -158,6 +172,8 @@ OpenRecent.prototype.insertCurrentPaths = ->
   @update()
 
  OpenRecent.prototype.insertFilePath = (path) ->
+  return if @filterPath(path)
+
   recentFiles = @db.get('files')
 
   # Remove if already listed
@@ -261,7 +277,10 @@ module.exports =
       type: 'boolean'
       default: false
       description: 'When checked, the all root directories in a project will be added to the history and not just the 1st root directory.'
-
+    ignoredNames:
+      type: 'boolean'
+      default: true
+      description: 'When checked, skips files and directories specified in Atom\'s "Ignored Names" setting.'
   model: null
 
   activate: ->
