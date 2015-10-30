@@ -1,4 +1,4 @@
-minimatch = require 'minimatch'
+minimatch = null
 
 #--- localStorage DB
 DB = (key) ->
@@ -136,13 +136,15 @@ OpenRecent.prototype.init = ->
 
 # returns a Boolean if the path should be filtered, based on settings
 OpenRecent.prototype.filterPath = (path) ->
-  if atom.config.get('open-recent.ignoredNames') && ignoredNames = atom.config.get('core.ignoredNames')
+  ignoredNames = atom.config.get('core.ignoredNames')
+  if ignoredNames
+    minimatch ?= require('minimatch')
     for name in ignoredNames
       match = [name, "**/#{name}/**"].some (comparison) ->
-        minimatch(path, comparison, { matchBase: true, dot: true })
+        return minimatch(path, comparison, { matchBase: true, dot: true })
       return true if match
 
-  false # default return value
+  return false # default return value
 
 OpenRecent.prototype.insertCurrentPaths = ->
   return unless atom.project.getDirectories().length > 0
