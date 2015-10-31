@@ -2,16 +2,18 @@ minimatch = null
 
 #--- localStorage DB
 class DB
-  constructor: (key) ->
-    @key = key
+  constructor: (@key) ->
 
   getData: ->
     data = localStorage[@key]
     data = if data? then JSON.parse(data) else {}
     return data
-  
+
   setData: (data) ->
     localStorage[@key] = JSON.stringify(data)
+
+  removeData: ->
+    localStorage.removeItem(@key)
   
   get: (name) ->
     data = @getData()
@@ -22,18 +24,19 @@ class DB
     data[name] = value
     @setData(data)
 
+  remove: (name) ->
+    data = @getData()
+    delete data[name]
+    @setData(data)
+
 
 #--- OpenRecent
 class OpenRecent
   constructor: ->
-    @db = new DB('openRecent')
+    @eventListenerDisposables = []
     @commandListenerDisposables = []
 
   #--- Event Handlers
-  onLocalStorageEvent: (e) ->
-    if e.key is @db.key
-      @update()
-
   onUriOpened: ->
     editor = atom.workspace.getActiveTextEditor()
     filePath = editor?.buffer?.file?.path
@@ -52,14 +55,14 @@ class OpenRecent
   addCommandListeners: ->
     #--- Commands
     # open-recent:open-recent-file-#
-    for index, path of @db.get('files')
+    for index, path of atom.config.get('open-recent.recentFiles')
       do (path) => # Explicit closure
         disposable = atom.commands.add "atom-workspace", "open-recent:open-recent-file-#{index}", =>
           @openFile path
         @commandListenerDisposables.push disposable
 
     # open-recent:open-recent-path-#
-    for index, path of @db.get('paths')
+    for index, path of atom.config.get('open-recent.recentDirectories')
       do (path) => # Explicit closure
         disposable = atom.commands.add "atom-workspace", "open-recent:open-recent-path-#{index}", =>
           @openPath path
@@ -67,8 +70,8 @@ class OpenRecent
 
     # open-recent:clear
     disposable = atom.commands.add "atom-workspace", "open-recent:clear", =>
-      @db.set('files', [])
-      @db.set('paths', [])
+      atom.config.set('open-recent.recentFiles', [])
+      atom.config.set('open-recent.recentDirectories', [])
       @update()
     @commandListenerDisposables.push disposable
 
@@ -102,11 +105,18 @@ class OpenRecent
     @addCommandListeners()
 
     #--- Events
-    @onUriOpenedDisposable = atom.workspace.onDidOpen @onUriOpened.bind(@)
-    @onDidChangePathsDisposable = atom.project.onDidChangePaths @onProjectPathChange.bind(@)
+    disposable = atom.workspace.onDidOpen @onUriOpened.bind(@)
+    @eventListenerDisposables.push(disposable)
+
+    disposable = atom.project.onDidChangePaths @onProjectPathChange.bind(@)
+    @eventListenerDisposables.push(disposable)
 
     # Notify other windows during a setting data in localStorage.
-    window.addEventListener "storage", @onLocalStorageEvent.bind(@)
+    disposable = atom.config.onDidChange 'open-recent.recentDirectories', @update.bind(@)
+    @eventListenerDisposables.push(disposable)
+
+    disposable = atom.config.onDidChange 'open-recent.recentFiles', @update.bind(@)
+    @eventListenerDisposables.push(disposable)
 
   removeCommandListeners: ->
     #--- Commands
@@ -119,22 +129,20 @@ class OpenRecent
     @removeCommandListeners()
 
     #--- Events
-    if @onUriOpenedDisposable
-      @onUriOpenedDisposable.dispose()
-      @onUriOpenedDisposable = null
-    if @onDidChangePathsDisposable
-      @onDidChangePathsDisposable.dispose()
-      @onDidChangePathsDisposable = null
-    window.removeEventListener 'storage', @onLocalStorageEvent.bind(@)
+    for disposable in @eventListenerDisposables
+      disposable.dispose()
+    @eventListenerDisposables = []
 
   #--- Methods
   init: ->
+    # Migrate
+    db = new DB('openRecent')
+    if db.get('paths') or db.get('files')
+      atom.config.set('open-recent.recentDirectories', db.get('paths'))
+      atom.config.set('open-recent.recentFiles', db.get('files'))
+      db.removeData()
+
     @addListeners()
-
-    # Defaults
-    @db.set('paths', []) unless @db.get('paths')
-    @db.set('files', []) unless @db.get('files')
-
     @insertCurrentPaths()
     @update()
 
@@ -153,7 +161,7 @@ class OpenRecent
   insertCurrentPaths: ->
     return unless atom.project.getDirectories().length > 0
 
-    recentPaths = @db.get('paths')
+    recentPaths = atom.config.get('open-recent.recentDirectories')
     for projectDirectory, index in atom.project.getDirectories()
       # Ignore the second, third, ... folders in a project
       continue if index > 0 and not atom.config.get('open-recent.listDirectoriesAddedToProject')
@@ -174,13 +182,13 @@ class OpenRecent
       if recentPaths.length > maxRecentDirectories
         recentPaths.splice maxRecentDirectories, recentPaths.length - maxRecentDirectories
 
-    @db.set('paths', recentPaths)
+    atom.config.set('open-recent.recentDirectories', recentPaths)
     @update()
 
   insertFilePath: (path) ->
     return if @filterPath(path)
 
-    recentFiles = @db.get('files')
+    recentFiles = atom.config.get('open-recent.recentFiles')
 
     # Remove if already listed
     index = recentFiles.indexOf path
@@ -194,7 +202,7 @@ class OpenRecent
     if recentFiles.length > maxRecentFiles
       recentFiles.splice maxRecentFiles, recentFiles.length - maxRecentFiles
 
-    @db.set('files', recentFiles)
+    atom.config.set('open-recent.recentFiles', recentFiles)
     @update()
 
   #--- Menu
@@ -204,7 +212,7 @@ class OpenRecent
     submenu.push { type: "separator" }
 
     # Files
-    recentFiles = @db.get('files')
+    recentFiles = atom.config.get('open-recent.recentFiles')
     if recentFiles.length
       for index, path of recentFiles
         menuItem = {
@@ -218,7 +226,7 @@ class OpenRecent
       submenu.push { type: "separator" }
 
     # Root Paths
-    recentPaths = @db.get('paths')
+    recentPaths = atom.config.get('open-recent.recentDirectories')
     if recentPaths.length
       for index, path of recentPaths
         menuItem = {
@@ -287,7 +295,19 @@ module.exports =
       type: 'boolean'
       default: true
       description: 'When checked, skips files and directories specified in Atom\'s "Ignored Names" setting.'
-  
+    recentDirectories:
+      type: 'array'
+      default: []
+      items:
+        type: 'string'
+      description: 'If needed, it\'s recommended to edit this in your config.cson file.'
+    recentFiles:
+      type: 'array'
+      default: []
+      items:
+        type: 'string'
+      description: 'If needed, it\'s recommended to edit this in your config.cson file.'
+
   model: null
 
   activate: ->
