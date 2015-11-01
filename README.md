@@ -14,4 +14,3 @@ Open recent files in the current window, and recent folders (optionally) in a ne
 * `replaceProjectOnOpenDirectory` When true, opening a recent directory will "open" in the current window, replacing the current project.
 * `listDirectoriesAddedToProject` When true, the all root directories in a project will be added to the history and not just the 1st root directory.
 * `ignoredNames` When true, skips files and directories specified in Atom's "Ignored Names" setting.
-* `recentFiles` / `recentDirectories` The paths found in the menu. If needed, it's recommended to edit this in your config.cson file.

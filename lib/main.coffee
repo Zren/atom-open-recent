@@ -14,7 +14,7 @@ class DB
 
   removeData: ->
     localStorage.removeItem(@key)
-  
+
   get: (name) ->
     data = @getData()
     return data[name]
@@ -35,6 +35,8 @@ class OpenRecent
   constructor: ->
     @eventListenerDisposables = []
     @commandListenerDisposables = []
+    @localStorageEventListener = @onLocalStorageEvent.bind(@)
+    @db = new DB('openRecent')
 
   #--- Event Handlers
   onUriOpened: ->
@@ -50,19 +52,22 @@ class OpenRecent
   onProjectPathChange: (projectPaths) ->
     @insertCurrentPaths()
 
+  onLocalStorageEvent: (e) ->
+    if e.key is @db.key
+      @update()
 
   #--- Listeners
   addCommandListeners: ->
     #--- Commands
     # open-recent:open-recent-file-#
-    for index, path of atom.config.get('open-recent.recentFiles')
+    for index, path of @db.get('files')
       do (path) => # Explicit closure
         disposable = atom.commands.add "atom-workspace", "open-recent:open-recent-file-#{index}", =>
           @openFile path
         @commandListenerDisposables.push disposable
 
     # open-recent:open-recent-path-#
-    for index, path of atom.config.get('open-recent.recentDirectories')
+    for index, path of @db.get('paths')
       do (path) => # Explicit closure
         disposable = atom.commands.add "atom-workspace", "open-recent:open-recent-path-#{index}", =>
           @openPath path
@@ -70,8 +75,8 @@ class OpenRecent
 
     # open-recent:clear
     disposable = atom.commands.add "atom-workspace", "open-recent:clear", =>
-      atom.config.set('open-recent.recentFiles', [])
-      atom.config.set('open-recent.recentDirectories', [])
+      @db.set('files', [])
+      @db.set('paths', [])
       @update()
     @commandListenerDisposables.push disposable
 
@@ -112,11 +117,7 @@ class OpenRecent
     @eventListenerDisposables.push(disposable)
 
     # Notify other windows during a setting data in localStorage.
-    disposable = atom.config.onDidChange 'open-recent.recentDirectories', @update.bind(@)
-    @eventListenerDisposables.push(disposable)
-
-    disposable = atom.config.onDidChange 'open-recent.recentFiles', @update.bind(@)
-    @eventListenerDisposables.push(disposable)
+    window.addEventListener "storage", @localStorageEventListener
 
   removeCommandListeners: ->
     #--- Commands
@@ -133,14 +134,16 @@ class OpenRecent
       disposable.dispose()
     @eventListenerDisposables = []
 
+    window.removeEventListener 'storage', @localStorageEventListener
+
   #--- Methods
   init: ->
     # Migrate
-    db = new DB('openRecent')
-    if db.get('paths') or db.get('files')
-      atom.config.set('open-recent.recentDirectories', db.get('paths'))
-      atom.config.set('open-recent.recentFiles', db.get('files'))
-      db.removeData()
+    if atom.config.get('open-recent.recentDirectories') or atom.config.get('open-recent.recentFiles')
+      @db.set('paths', atom.config.get('open-recent.recentDirectories'))
+      @db.set('files', atom.config.get('open-recent.recentFiles'))
+      atom.config.unset('open-recent.recentDirectories')
+      atom.config.unset('open-recent.recentFiles')
 
     @addListeners()
     @insertCurrentPaths()
@@ -161,7 +164,7 @@ class OpenRecent
   insertCurrentPaths: ->
     return unless atom.project.getDirectories().length > 0
 
-    recentPaths = atom.config.get('open-recent.recentDirectories')
+    recentPaths = @db.get('paths')
     for projectDirectory, index in atom.project.getDirectories()
       # Ignore the second, third, ... folders in a project
       continue if index > 0 and not atom.config.get('open-recent.listDirectoriesAddedToProject')
@@ -182,13 +185,13 @@ class OpenRecent
       if recentPaths.length > maxRecentDirectories
         recentPaths.splice maxRecentDirectories, recentPaths.length - maxRecentDirectories
 
-    atom.config.set('open-recent.recentDirectories', recentPaths)
+    @db.set('paths', recentPaths)
     @update()
 
   insertFilePath: (path) ->
     return if @filterPath(path)
 
-    recentFiles = atom.config.get('open-recent.recentFiles')
+    recentFiles = @db.get('files')
 
     # Remove if already listed
     index = recentFiles.indexOf path
@@ -202,7 +205,7 @@ class OpenRecent
     if recentFiles.length > maxRecentFiles
       recentFiles.splice maxRecentFiles, recentFiles.length - maxRecentFiles
 
-    atom.config.set('open-recent.recentFiles', recentFiles)
+    @db.set('files', recentFiles)
     @update()
 
   #--- Menu
@@ -212,7 +215,7 @@ class OpenRecent
     submenu.push { type: "separator" }
 
     # Files
-    recentFiles = atom.config.get('open-recent.recentFiles')
+    recentFiles = @db.get('files')
     if recentFiles.length
       for index, path of recentFiles
         menuItem = {
@@ -226,7 +229,7 @@ class OpenRecent
       submenu.push { type: "separator" }
 
     # Root Paths
-    recentPaths = atom.config.get('open-recent.recentDirectories')
+    recentPaths = @db.get('paths')
     if recentPaths.length
       for index, path of recentPaths
         menuItem = {
@@ -295,25 +298,13 @@ module.exports =
       type: 'boolean'
       default: true
       description: 'When checked, skips files and directories specified in Atom\'s "Ignored Names" setting.'
-    recentDirectories:
-      type: 'array'
-      default: []
-      items:
-        type: 'string'
-      description: 'If needed, it\'s recommended to edit this in your config.cson file.'
-    recentFiles:
-      type: 'array'
-      default: []
-      items:
-        type: 'string'
-      description: 'If needed, it\'s recommended to edit this in your config.cson file.'
 
-  model: null
+  instance: null
 
   activate: ->
-    @model = new OpenRecent()
-    @model.init()
+    @instance = new OpenRecent()
+    @instance.init()
 
   deactivate: ->
-    @model.destroy()
-    @model = null
+    @instance.destroy()
+    @instance = null
