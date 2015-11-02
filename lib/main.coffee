@@ -145,6 +145,10 @@ class OpenRecent
       atom.config.unset('open-recent.recentDirectories')
       atom.config.unset('open-recent.recentFiles')
 
+    # Defaults
+    @db.set('paths', []) unless @db.get('paths')
+    @db.set('files', []) unless @db.get('files')
+
     @addListeners()
     @insertCurrentPaths()
     @update()
