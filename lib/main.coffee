@@ -60,14 +60,14 @@ class OpenRecent
   addCommandListeners: ->
     #--- Commands
     # open-recent:open-recent-file-#
-    for index, path of @db.get('files')
+    for path, index in @db.get('files')
       do (path) => # Explicit closure
         disposable = atom.commands.add "atom-workspace", "open-recent:open-recent-file-#{index}", =>
           @openFile path
         @commandListenerDisposables.push disposable
 
     # open-recent:open-recent-path-#
-    for index, path of @db.get('paths')
+    for path, index in @db.get('paths')
       do (path) => # Explicit closure
         disposable = atom.commands.add "atom-workspace", "open-recent:open-recent-path-#{index}", =>
           @openPath path
@@ -221,7 +221,7 @@ class OpenRecent
     # Files
     recentFiles = @db.get('files')
     if recentFiles.length
-      for index, path of recentFiles
+      for path, index in recentFiles
         menuItem = {
           label: path
           command: "open-recent:open-recent-file-#{index}"
@@ -235,7 +235,7 @@ class OpenRecent
     # Root Paths
     recentPaths = @db.get('paths')
     if recentPaths.length
-      for index, path of recentPaths
+      for path, index in recentPaths
         menuItem = {
           label: path
           command: "open-recent:open-recent-path-#{index}"
