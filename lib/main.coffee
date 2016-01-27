@@ -67,22 +67,24 @@ class OpenRecent
   #--- Listeners
   addCommandListeners: ->
     #--- Commands
-    # open-recent:f#-path
+    # open-recent:File#-path
     for path, index in @db.get('files')
       do (path) => # Explicit closure
         disposable = atom.commands.add "atom-workspace", @commandEventName("File#{index}", path), =>
           @openFile path
         @commandListenerDisposables.push disposable
 
-    # open-recent:d#-path
+    # open-recent:Dir#-path
     for path, index in @db.get('paths')
       do (path) => # Explicit closure
         disposable = atom.commands.add "atom-workspace", @commandEventName("Dir#{index}", path), =>
           @openPath path
         @commandListenerDisposables.push disposable
 
-    # open-recent:clear
-    disposable = atom.commands.add "atom-workspace", "open-recent:clear", =>
+    # open-recent:clear-all------...
+    # Add tons of --- at the end to sort this item at the bottom of the command palette.
+    # Multiple spaces are ignored inside the command palette.
+    disposable = atom.commands.add "atom-workspace", "open-recent:clear-all" + '-'.repeat(1024), =>
       @db.set('files', [])
       @db.set('paths', [])
       @update()
@@ -254,7 +256,7 @@ class OpenRecent
         submenu.push menuItem
       submenu.push { type: "separator" }
 
-    submenu.push { command: "open-recent:clear", label: "Clear List" }
+    submenu.push { command: "open-recent:clear-all" + '-'.repeat(1024), label: "Clear List" }
     return submenu
 
   updateMenu: ->
