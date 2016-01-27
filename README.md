@@ -2,10 +2,13 @@
 
 Open recent files in the current window, and recent folders (optionally) in a new window.
 
-## Screenshot
+## Screenshots
 
 ![](http://i.imgur.com/d9y4iAi.png)
 
+You can also open the command palette `Ctrl+Alt+P` and type `open file0`, `open dir0` or `open [filepath]`.
+
+![](http://i.imgur.com/JUed5jx.png)
 
 ## Settings
 
