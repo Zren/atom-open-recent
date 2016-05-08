@@ -6,7 +6,7 @@ Open recent files in the current window, and recent folders (optionally) in a ne
 
 ![](http://i.imgur.com/d9y4iAi.png)
 
-You can also open the command palette `Ctrl+Alt+P` and type `open file0`, `open dir0` or `open [filepath]`.
+By default, you can also open the command palette `Ctrl+Alt+P` and type `open file0`, `open dir0` or `open [filepath]`.
 
 ![](http://i.imgur.com/JUed5jx.png)
 
@@ -17,3 +17,4 @@ You can also open the command palette `Ctrl+Alt+P` and type `open file0`, `open 
 * `replaceProjectOnOpenDirectory` When true, opening a recent directory will "open" in the current window, replacing the current project.
 * `listDirectoriesAddedToProject` When true, the all root directories in a project will be added to the history and not just the 1st root directory.
 * `ignoredNames` When true, skips files and directories specified in Atom's "Ignored Names" setting.
+* `listRecentItemsInCommandPalette` When true, also lists recent items in the command palette.
