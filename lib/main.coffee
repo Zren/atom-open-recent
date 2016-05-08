@@ -67,19 +67,20 @@ class OpenRecent
   #--- Listeners
   addCommandListeners: ->
     #--- Commands
-    # open-recent:File#-path
-    for path, index in @db.get('files')
-      do (path) => # Explicit closure
-        disposable = atom.commands.add "atom-workspace", @commandEventName("File#{index}", path), =>
-          @openFile path
-        @commandListenerDisposables.push disposable
+    if atom.config.get 'open-recent.listInCommandPalette'
+      # open-recent:File#-path
+      for path, index in @db.get('files')
+        do (path) => # Explicit closure
+          disposable = atom.commands.add "atom-workspace", @commandEventName("File#{index}", path), =>
+            @openFile path
+          @commandListenerDisposables.push disposable
 
-    # open-recent:Dir#-path
-    for path, index in @db.get('paths')
-      do (path) => # Explicit closure
-        disposable = atom.commands.add "atom-workspace", @commandEventName("Dir#{index}", path), =>
-          @openPath path
-        @commandListenerDisposables.push disposable
+      # open-recent:Dir#-path
+      for path, index in @db.get('paths')
+        do (path) => # Explicit closure
+          disposable = atom.commands.add "atom-workspace", @commandEventName("Dir#{index}", path), =>
+            @openPath path
+          @commandListenerDisposables.push disposable
 
     # open-recent:clear-all------...
     # Add tons of --- at the end to sort this item at the bottom of the command palette.
@@ -312,6 +313,10 @@ module.exports =
       type: 'boolean'
       default: true
       description: 'When checked, skips files and directories specified in Atom\'s "Ignored Names" setting.'
+    listRecentItemsInCommandPalette:
+      type: 'boolean'
+      default: true
+      description: 'When checked, also lists recent items in the command palette.'
 
   instance: null
 
