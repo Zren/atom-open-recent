@@ -123,6 +123,12 @@ class OpenRecent
     disposable = atom.workspace.onDidOpen @onUriOpened.bind(@)
     @eventListenerDisposables.push(disposable)
 
+    f = @onUriOpened.bind(@)
+    atom.workspace.observeTextEditors (editor) ->
+      editor.onDidSave ->
+        if atom.config.get('open-recent.sortByLastModified')
+          f()
+
     disposable = atom.project.onDidChangePaths @onProjectPathChange.bind(@)
     @eventListenerDisposables.push(disposable)
 
@@ -312,6 +318,10 @@ module.exports =
       type: 'boolean'
       default: true
       description: 'When checked, skips files and directories specified in Atom\'s "Ignored Names" setting.'
+    sortByLastModified:
+      type: 'boolean'
+      default: false
+      description: 'When checked, Arrange files in the order they were saved.'
 
   instance: null
 
